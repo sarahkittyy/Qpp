@@ -2,6 +2,7 @@
 
 #include <functional>
 #include <future>
+#include <string>
 #include <vector>
 
 namespace Q
@@ -16,11 +17,10 @@ template <typename Value>
 class Promise
 {
 public:
-	/**
-	 * @brief For readability.
-	 * 
-	 */
+	/// Callback type called on .then();
 	typedef std::function<void(Value)> Callback;
+	/// Callback type called on .fail();
+	typedef std::function<void(std::string)> ErrorCallback;
 
 	/**
 	 * @brief Initialize the promise with a function to run.
@@ -48,6 +48,18 @@ public:
 	}
 
 	/**
+	 * @brief Attach a callback to be called on an exception.
+	 * 
+	 * @param callback The callback to attach. Passed exception details as a string.
+	 * @return Promise& Reference to this for chaining.
+	 */
+	Promise& fail(ErrorCallback callback)
+	{
+		mErrorCallbacks.push_back(callback);
+		return *this;
+	}
+
+	/**
 	 * @brief Call after chaining then() to start the thread.
 	 * 
 	 */
@@ -56,7 +68,41 @@ public:
 		// Launch the asynchronous promise thread.
 		mTask = std::async(std::launch::async, [this]() -> void {
 			// Run the function.
-			Value v = mFunction();
+			Value v;
+
+			// Tracking if any of the many catch() statements fire.
+			bool errored = false;
+			std::string errorMsg = "";
+			try
+			{
+				v = mFunction();
+			}
+			catch (const std::exception& e)
+			{
+				errored = true;
+				errorMsg = e.what();
+			}
+			catch (const std::string& s)
+			{
+				errored = true;
+				errorMsg = s;
+			}
+			catch (...)
+			{
+				errored = true;
+				errorMsg = "Unknown exception type.";
+			}
+
+			// If we errored, call all error callbacks, and return.
+			if (errored)
+			{
+				for (auto& callback : mErrorCallbacks)
+				{
+					callback(errorMsg);
+				}
+				return;
+			}
+
 			// Grab all then() callbacks, and pass the resulting value.
 			for (auto& callback : mCallbacks)
 			{
@@ -81,6 +127,8 @@ private:
 	std::future<void> mTask;
 	/// All callbacks to be chained once the future returns.
 	std::vector<Callback> mCallbacks;
+	/// Callbacks to call on an error.
+	std::vector<ErrorCallback> mErrorCallbacks;
 };
 
 }

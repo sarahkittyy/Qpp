@@ -44,4 +44,4 @@ int main()
 
 ## TODO
 
-* `.catch();`
+* ~~`.catch();`~~ Implemented as `.fail();`
