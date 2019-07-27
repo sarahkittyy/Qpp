@@ -8,9 +8,6 @@ Include the Q.hpp header, and use your cxx compiler's `-pthread` option to link 
 
 ## Example
 
-#include <iostream>
-#include "Q.hpp"
-
 ```cpp
 #include <iostream>
 #include "Q.hpp"
